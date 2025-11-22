@@ -1,0 +1,52 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #f5f7fa;
+    margin: 0;
+    padding: 40px;
+}
+
+.container {
+    width: 600px;
+    margin: auto;
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+button {
+    padding: 10px 20px;
+    margin-bottom: 20px;
+    cursor: pointer;
+    background-color: #4c8bf5;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 15px;
+}
+
+button:hover {
+    background-color: #2c67d1;
+}
+
+.users-box, .test-box {
+    padding: 15px;
+    background: #eef2f7;
+    border-radius: 8px;
+    min-height: 40px;
+}
+
+.user-item {
+    padding: 6px 0;
+    border-bottom: 1px solid #ddd;
+}
+
+.error {
+    color: red;
+    font-weight: bold;
+}
