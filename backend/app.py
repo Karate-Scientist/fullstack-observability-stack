@@ -1,193 +1,147 @@
+import os
 import logging
-from logging.handlers import RotatingFileHandler
-from flask import Flask, jsonify, request, render_template
-from flask_cors import CORS
-import mysql.connector
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from flask import Flask, jsonify, request
 from ddtrace import patch_all, tracer
-import sys
+from flask_cors import CORS
 
+# 🔍 Enable Datadog auto-instrumentation
 patch_all()
 
-# =====================================================
-#   FLASK + CORS
-# =====================================================
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
 
-# =====================================================
-#   LOGGING SETUP
-# =====================================================
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)]
+CORS(
+    app,
+    resources={r"/*": {"origins": "http://localhost:8080"}}
 )
 
-logger = logging.getLogger("backend")
-logger.setLevel(logging.INFO)
+# 📜 Basic structured logging (stdout → Datadog picks this up)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s"
+)
+logger = logging.getLogger("user-crud-app")
 
-# Console logging
-console_handler = logging.StreamHandler()
-console_handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)s | %(message)s"))
-logger.addHandler(console_handler)
+def get_db_connection():
+    return psycopg2.connect(
+        host=os.environ.get("DB_HOST"),
+        database=os.environ.get("DB_NAME"),
+        user=os.environ.get("DB_USER"),
+        password=os.environ.get("DB_PASSWORD"),
+        port=os.environ.get("DB_PORT"),
+        cursor_factory=RealDictCursor
+    )
 
-# File logging (rotating)
-file_handler = RotatingFileHandler("app.log", maxBytes=2*1024*1024, backupCount=3)
-file_handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)s | %(message)s"))
-logger.addHandler(file_handler)
-
-# =====================================================
-#   DATABASE CONNECTION
-# =====================================================
-def get_connection():
-    try:
-        conn = mysql.connector.connect(
-            host="localhost",
-            user="root",
-            password="admin",
-            database="mydatabase"
+def init_db():
+    logger.info("Initializing database")
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            name TEXT NOT NULL,
+            email TEXT NOT NULL
         )
-        logger.info("DB connection established successfully")
-        return conn
-    except mysql.connector.Error as err:
-        logger.error(f"DB connection failed: {err}")
-        raise
+    """)
+    conn.commit()
+    cur.close()
+    conn.close()
+    logger.info("Database initialized")
+
+@app.before_request
+def log_request():
+    logger.info(
+        "Incoming request",
+        extra={
+            "method": request.method,
+            "path": request.path,
+            "remote_addr": request.remote_addr
+        }
+    )
+
+@app.route("/users", methods=["GET"])
+def get_users():
+    logger.info("Fetching users")
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT id, name, email FROM users ORDER BY id")
+    users = cur.fetchall()
+    cur.close()
+    conn.close()
+    logger.info("Fetched %s users", len(users))
+    if not users:
+        logger.warning("No users found in database")
+        return jsonify([]), 200
+    return jsonify(users),200
 
 
-# =====================================================
-#   ROUTES
-# =====================================================
-
-
-@app.route("/")
-def home():
-    return render_template("index.html")
-
-# ----- TEST ROUTE -----
-@app.route("/test")
-def test():
-    return "TEST OK", 200
-
-# ----- ADD USER -----
 @app.route("/users", methods=["POST"])
 def add_user():
-    data = request.json
-    logger.info(f"POST /users called with: {data}")
-
-    if "name" not in data or "email" not in data:
-        return jsonify({"error": "name and email are required"}), 400
-
+    log = logging.LoggerAdapter(logger, {"user_name": "-"})
+    log.info("POST /users HIT")
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
+        data = request.get_json()
+        log = logging.LoggerAdapter(logger, {"user_name": data.get("name")})
+        log.info("Adding users request")
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
             "INSERT INTO users (name, email) VALUES (%s, %s)",
             (data["name"], data["email"])
         )
         conn.commit()
-        logger.info("User added successfully")
-        return jsonify({"message": "User added"}), 201
-
+        cur.close()
+        conn.close()
+        logging.log.info("User added successfully")
+        return jsonify({"message": "User added successfully"}), 201
+    
     except Exception as e:
-        logger.error(f"Error adding user: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error("Error adding user: %s", str(e))
+        return jsonify({"error": "Failed to add user"}), 200
+ 
 
-    finally:
-        try:
-            cursor.close()
-            conn.close()
-        except:
-            pass
-
-
-# ----- UPDATE USER -----
 @app.route("/users/<int:user_id>", methods=["PUT"])
 def update_user(user_id):
-    data = request.json
-    logger.info(f"PUT /users/{user_id} called with: {data}")
-
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
+        data = request.get_json()
+        logger.info("Updating user", extra={"user_id": user_id})
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
             "UPDATE users SET name=%s, email=%s WHERE id=%s",
             (data["name"], data["email"], user_id)
         )
         conn.commit()
+        cur.close()
+        conn.close()
 
-        if cursor.rowcount == 0:
-            return jsonify({"error": "User not found"}), 404
-
-        logger.info("User updated successfully")
-        return jsonify({"message": "User updated"}), 200
-
+        return jsonify({"message": "User updated successfully"}),204
+    
     except Exception as e:
-        logger.error(f"Error updating user: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error("Error updating user: %s", str(e))
+        return jsonify({"error": "Failed to update user"}), 200
+    
 
-    finally:
-        try:
-            cursor.close()
-            conn.close()
-        except:
-            pass
-
-
-# ----- DELETE USER -----
 @app.route("/users/<int:user_id>", methods=["DELETE"])
 def delete_user(user_id):
-    logger.info(f"DELETE /users/{user_id} called")
-
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM users WHERE id=%s", (user_id,))
+        logger.info("Deleting user", extra={"user_id": user_id})
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM users WHERE id=%s", (user_id,))
         conn.commit()
+        cur.close()
+        conn.close()
 
-        if cursor.rowcount == 0:
-            return jsonify({"error": "User not found"}), 404
-
-        logger.info("User deleted successfully")
-        return jsonify({"message": "User deleted"}), 200
-
+        return jsonify({"message": "User deleted successfully"}), 204
+    
     except Exception as e:
-        logger.error(f"Error deleting user: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error("Error deleting user: %s", str(e))
+        return jsonify({"error": "Failed to delete user"}), 200
 
-    finally:
-        try:
-            cursor.close()
-            conn.close()
-        except:
-            pass
-
-# ----- GET ALL USERS -----
-@app.route("/users", methods=["GET"])
-def get_users():
-    logger.info("GET /users called")
-    try:
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM users")
-        users = cursor.fetchall()
-        logger.info(f"Fetched {len(users)} users")
-        return jsonify(users), 200
-
-    except Exception as e:
-        logger.error(f"Error fetching users: {e}")
-        return jsonify({"error": str(e)}), 500
-
-    finally:
-        try:
-            cursor.close()
-            conn.close()
-        except:
-            pass
-
-
-# =====================================================
-#   START SERVER
-# =====================================================
 if __name__ == "__main__":
-    logger.info("Starting Flask server on 0.0.0.0:5000 ...")
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    init_db()
+    app.run(host="0.0.0.0", port=5000)
