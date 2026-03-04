@@ -77,8 +77,8 @@ A containerized full-stack application built to demonstrate production-grade Doc
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/Karate-Scientist/docker_refresh.git
-cd docker_refresh
+git clone https://github.com/Karate-Scientist/fullstack-observability-stack.git
+cd fullstack-observability-stack
 
 # 2. Create your environment file
 cp .env.example .env
