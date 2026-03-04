@@ -15,13 +15,13 @@ services:
       DB_USER: appuser
       DB_PASSWORD: apppassword
       DB_PORT: 5432
-      DD_TRACE_DEBUG: false
-      DD_TRACE_ENABLED: false
+      DD_TRACE_DEBUG: true
+      DD_TRACE_ENABLED: true
       DD_SERVICE: backend
       DD_ENV: dev
       DD_VERSION: 1.0
       DD_LOG_LEVEL: INFO
-      DD_AGENT_HOST: datadog-agent
+      DD_AGENT_HOST: datadog
       DD_LOGS_ENABLED: true
       DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: true
       DD_TRACE_AGENT_PORT: 8126
@@ -40,14 +40,14 @@ services:
       - DD_ENV=dev
       - DD_VERSION=1.0
       - DD_TRACE_ENABLED=true
-      - DD_AGENT_HOST=datadog-agent
+      - DD_AGENT_HOST=datadog
       - DD_LOGS_ENABLED=true
       - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
     volumes:
       - /var/log/nginx:/var/log/nginx
 
   datadog:
-    image: gcr.io/datadoghq/agent:latest
+    image: datadog/agent:latest
     container_name: datadog-agent-007
     ports: 
       - "8126:8126"  # APM tracing port
@@ -58,6 +58,7 @@ services:
       - DD_LOGS_ENABLED=true
       - DD_APM_ENABLED=true
       - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+      
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc/:/host/proc/:ro
