@@ -7,13 +7,24 @@ window.onload = () => {
     loadUsers();
 };
 
+function sendLog(level, message, context = {}) {
+    const log = {
+        timestamp: new Date().toISOString(),
+        level: level,
+        service: "frontend",
+        message: message,
+        ...context
+    };
+    console.log(JSON.stringify(log));
+}
+
 function loadUsers() {
     fetch(`${baseURL}/users`)
         .then(res => res.json())
         .then(data => {
             const table = document.querySelector("#userTable tbody");
             table.innerHTML = "";
-
+            sendLog("INFO", "Fetching users");
             data.forEach(user => {
                 let row = `
                     <tr>
@@ -35,13 +46,14 @@ function loadUsers() {
 function addUser() {
     const name = document.getElementById("name").value;
     const email = document.getElementById("email").value;
-
+    sendLog("INFO", "Adding user", { name: userData.name });
     fetch(`${baseURL}/users`, {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({name, email})
     })
     .then(() => loadUsers());
+    sendLog("INFO", "User added successfully", { name: userDataname });
 }
 
 // UPDATE
@@ -55,6 +67,7 @@ function updateUser(id) {
         body: JSON.stringify({name, email})
     })
     .then(() => loadUsers());
+    sendLog("INFO", "Updating user", { user_id: id });
 }
 
 // DELETE
@@ -63,4 +76,5 @@ function deleteUser(id) {
         method: "DELETE"
     })
     .then(() => loadUsers());
+    sendLog("INFO", "Deleting user", { user_id: id });
 }

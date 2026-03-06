@@ -18,15 +18,17 @@ CORS(
 )
 
 # 📜 Basic structured logging (stdout → Datadog picks this up)
-
 class JSONFormatter(logging.Formatter):
     def format(self, record):
+        span = tracer.current_span()
         return json.dumps({
             "timestamp": self.formatTime(record),
-            "level": record.levelname,       # ← DD reads this to set status
+            "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
-            "service": "backend"
+            "service": "backend",
+            "dd.trace_id": str(span.trace_id) if span else None,
+            "dd.span_id": str(span.span_id) if span else None,
         })
 
 handler = logging.StreamHandler()

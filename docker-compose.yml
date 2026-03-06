@@ -3,6 +3,8 @@ services:
   backend:
     labels:
       com.datadoghq.ad.logs: '[{"source":"python","service":"backend","log_processing_rules":[{"type":"include_at_match","name":"filter_debug","pattern":"INFO|WARNING|ERROR|CRITICAL"}]}]' # Log collection for backend service - very important for the DD to identify logs
+      com.datadoghq.tags.env: "dev"
+      com.datadoghq.tags.version: "1.0"
     build: ./backend
     depends_on:
       db:
@@ -30,6 +32,7 @@ services:
   frontend:
     labels:
       com.datadoghq.ad.logs: '[{"source":"nginx","service":"frontend","log_processing_rules":[{"type":"multi_line","name":"new_log_start_with_date","pattern":"\\d{4}-\\d{2}-\\d{2}"},{"type":"exclude_at_match","name":"exclude_entrypoint_noise","pattern":"docker-entrypoint"}]}]' # Log collection for frontend service - very important for the DD to identify logs by service
+      com.datadoghq.tags.env: "dev"
     build: ./frontend
     ports:
       - "8080:80"
@@ -58,7 +61,11 @@ services:
       - DD_LOGS_ENABLED=true
       - DD_APM_ENABLED=true
       - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
-      
+      - DD_POSTGRESQL_ENABLED=true
+      - DD_CONTAINER_LABELS_AS_TAGS=true     # pulls docker labels as DD tags
+      - DD_ENV=dev
+      - DD_VERSION=1.0
+
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc/:/host/proc/:ro
@@ -67,10 +74,15 @@ services:
   db:
     image: postgres:15
     container_name: postgres-db
+    labels:
+      com.datadoghq.ad.logs: '[{"source":"postgresql","service":"db"}]'
+      com.datadoghq.tags.service: "db"
+      com.datadoghq.tags.env: "dev"
     environment:
       POSTGRES_DB: appdb
       POSTGRES_USER: appuser
       POSTGRES_PASSWORD: apppassword
+      POSTGRES_HOST_AUTH_METHOD: trust
     ports:
       - "5432:5432"
     volumes:
