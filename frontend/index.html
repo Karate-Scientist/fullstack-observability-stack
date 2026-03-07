@@ -15,19 +15,24 @@
     <!-- Script for Datadog RUM Instrumentation -->
     <script>
         (function(h,o,u,n,d) {
-            h=h[d]=h[d]||{q:[],onReady:function(c){h.q.push(c)}}
-            d=o.createElement(u);d.async=1;d.src=n
-            n=o.getElementsByTagName(u)[0];n.parentNode.insertBefore(d,n)
+                h=h[d]=h[d]||{q:[],onReady:function(c){h.q.push(c)}}
+                d=o.createElement(u);d.async=1;d.src=n
+                n=o.getElementsByTagName(u)[0];n.parentNode.insertBefore(d,n)
             })(window,document,'script','https://www.datadoghq-browser-agent.com/eu1/v5/datadog-rum.js','DD_RUM')
             DD_RUM.onReady(function() {
             DD_RUM.init({
-            clientToken: 'pub3e9b63f2c7a178640348d8d18f360b0f',
-            applicationId: '449dca58-c1db-4762-b1ee-d69785c402d0',
-            site: 'datadoghq.eu',
-            service: 'frontend',
-            env: 'dev',
-            sessionSampleRate: 100,
-            trackUserInteractions: true,
+                clientToken: 'pub3e9b63f2c7a178640348d8d18f360b0f',
+                applicationId: '449dca58-c1db-4762-b1ee-d69785c402d0',
+                site: 'datadoghq.eu',
+                service: 'frontend',
+                env: 'dev',
+                version: '1.0',
+                sessionSampleRate: 100,
+                trackUserInteractions: true,
+                sessionReplaySampleRate: 100,    
+                trackResources: true,            
+                trackLongTasks: true,            
+                defaultPrivacyLevel: 'allow',    
             })
         })
     </script>

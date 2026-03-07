@@ -6,6 +6,7 @@ from psycopg2.extras import RealDictCursor
 from flask import Flask, jsonify, request
 from ddtrace import patch_all, tracer
 from flask_cors import CORS
+import time
 
 # 🔍 Enable Datadog auto-instrumentation
 patch_all()
@@ -108,11 +109,11 @@ def add_user():
         cur.close()
         conn.close()
         logger.info("User added successfully")
-        return jsonify({"message": "User added successfully"}), 201
+        return jsonify({"message": "User added successfully"})
     
     except Exception as e:
         logger.error("Error adding user: %s", str(e))
-        return jsonify({"error": "Failed to add user"}), 200
+        return jsonify({"error": "Failed to add user"})
  
 
 @app.route("/users/<int:user_id>", methods=["PUT"])
@@ -131,11 +132,11 @@ def update_user(user_id):
         cur.close()
         conn.close()
 
-        return jsonify({"message": "User updated successfully"}),204
+        return jsonify({"message": "User updated successfully"})
     
     except Exception as e:
         logger.error("Error updating user: %s", str(e))
-        return jsonify({"error": "Failed to update user"}), 200
+        return jsonify({"error": "Failed to update user"})
     
 
 @app.route("/users/<int:user_id>", methods=["DELETE"])
@@ -150,11 +151,27 @@ def delete_user(user_id):
         cur.close()
         conn.close()
 
-        return jsonify({"message": "User deleted successfully"}), 204
+        return jsonify({"message": "User deleted successfully"})
     
     except Exception as e:
         logger.error("Error deleting user: %s", str(e))
-        return jsonify({"error": "Failed to delete user"}), 200
+        return jsonify({"error": "Failed to delete user"})
+
+
+# Test endpoint to generate an error for Datadog APM
+@app.route("/error")
+def error():
+    logger.error("Test error for Datadog")
+    raise Exception("Test error for Datadog")
+
+
+# Test endpoint to simulate a slow response for Datadog APM
+@app.route("/slow")
+def slow():
+    time.sleep(2)
+    logger.info("Slow response endpoint hit")
+    return "Slow response"
+
 
 if __name__ == "__main__":
     init_db()
